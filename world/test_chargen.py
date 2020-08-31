@@ -15,18 +15,18 @@ from world.chargen import *
 class ChargenTestCase(EvenniaTest):
     """Test case for the chargen menu process."""
     character_typeclass = Character
-    settings.PROTOTYPE_MODULES = PROTOTYPE_MODULES
 
     def setUp(self):
         super(ChargenTestCase, self).setUp()
         self.session.msg = Mock()
+        settings.PROTOTYPE_MODULES = PROTOTYPE_MODULES
 
     def test_launch_chargen(self):
         """test launching the chargen menu"""
         self.session.execute_cmd('@charcreate TestChar')
         self.assertIsInstance(self.session.ndb._menutree, EvMenu)
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn('|wWelcome to |mAinneve|w, the example game for |yEvennia|w.|n',
+        self.assertIn(u'|n|wWelcome to |mAinneve|w, the example game for |yEvennia|w.|n',
                       msg.split('\n'))
 
     def test_launch_existing_start(self):
@@ -34,7 +34,7 @@ class ChargenTestCase(EvenniaTest):
         self.session.execute_cmd('@charcreate Char')
         self.assertIsInstance(self.session.ndb._menutree, EvMenu)
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn('|wWelcome to |mAinneve|w, the example game for |yEvennia|w.|n',
+        self.assertIn(u'|n|wWelcome to |mAinneve|w, the example game for |yEvennia|w.|n',
                       msg.split('\n'))
 
     def test_launch_existing_archetype(self):
@@ -42,7 +42,7 @@ class ChargenTestCase(EvenniaTest):
         archetypes.apply_archetype(self.char1, 'warrior')
         self.session.execute_cmd('@charcreate Char')
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn("Your character's traits influence combat abilities and skills.",
+        self.assertIn(u"|nYour character's traits influence combat abilities and skills.",
                       msg.split('\n'))
 
     def test_launch_existing_traits(self):
@@ -51,7 +51,7 @@ class ChargenTestCase(EvenniaTest):
         self.char1.traits.INT.base += 8
         self.session.execute_cmd('@charcreate Char')
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn("Next, select a race for your character:",
+        self.assertIn(u"|nNext, select a race for your character:|n",
                       msg.split('\n'))
 
     def test_launch_existing_race_magic(self):
@@ -61,7 +61,7 @@ class ChargenTestCase(EvenniaTest):
         races.apply_race(self.char1, 'human', 'agility')
         self.session.execute_cmd('@charcreate Char')
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn("Your |CMagic|n trait is |w8|n.",
+        self.assertIn(u"|nYour |CMagic|n trait is |w8|n.",
                       msg.split('\n'))
 
     def test_launch_existing_race_nomagic(self):
@@ -71,7 +71,7 @@ class ChargenTestCase(EvenniaTest):
         races.apply_race(self.char1, 'human', 'agility')
         self.session.execute_cmd('@charcreate Char')
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn("Your ability to perform actions in Ainneve is",
+        self.assertIn(u"|nYour ability to perform actions in Ainneve is",
                       msg.split('\n'))
 
     def test_launch_existing_unallocated_skills(self):
@@ -82,7 +82,7 @@ class ChargenTestCase(EvenniaTest):
         skills.apply_skills(self.char1)
         self.session.execute_cmd('@charcreate Char')
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn("Your ability to perform actions in Ainneve is",
+        self.assertIn(u"|nYour ability to perform actions in Ainneve is",
                       msg.split('\n'))
 
     def test_launch_existing_skills_allocated(self):
@@ -96,7 +96,7 @@ class ChargenTestCase(EvenniaTest):
         # this menu node returns the chars inventory then menu text
         # so we use mock_calls[1] instead of 0
         msg = self.session.msg.mock_calls[0][1][0]
-        self.assertIn("Select a category of equipment to view:",
+        self.assertIn(u"Select a category of equipment to view:|n",
                       msg.split('\n'))
 
     def test_ic_character(self):
@@ -172,7 +172,7 @@ class ChargenTestCase(EvenniaTest):
         """test trait allocation node"""
         archetypes.apply_archetype(self.char1, 'scout')
         self.session.execute_cmd('@charcreate Char')
-        for i in xrange(5):
+        for i in list(range(5)):
             self.session.execute_cmd('6')
         self.session.execute_cmd('5')
         self.session.execute_cmd('4 ')
@@ -191,7 +191,7 @@ class ChargenTestCase(EvenniaTest):
         """test trait allocation node"""
         archetypes.apply_archetype(self.char1, 'warrior')
         self.session.execute_cmd('@charcreate Char')
-        for i in xrange(5):
+        for i in list(range(5)):
             self.session.execute_cmd('1')
         self.assertEqual(self.char1.traits.STR.actual, 10)
         # confirm error message
@@ -202,7 +202,7 @@ class ChargenTestCase(EvenniaTest):
         """test starting over after having allocated some traits"""
         archetypes.apply_archetype(self.char1, 'scout')
         self.session.execute_cmd('@charcreate Char')
-        for i in xrange(5):
+        for i in list(range(5)):
             self.session.execute_cmd('6')
         self.session.execute_cmd('5')
         self.session.execute_cmd('4')
@@ -393,9 +393,9 @@ class ChargenTestCase(EvenniaTest):
         traits.INT.mod = traits.MAG.mod = 1
         races.apply_race(self.char1, 'elf', 'spirit')
         self.session.execute_cmd('@charcreate Char')
-        for i in xrange(4):
+        for i in list(range(4)):
             self.session.execute_cmd(' 1')
-        for i in xrange(5):
+        for i in list(range(5)):
             self.session.execute_cmd('2 ')
         self.assertEqual(traits.WM.base, 4)
         self.assertEqual(traits.BM.base, 5)
@@ -414,7 +414,7 @@ class ChargenTestCase(EvenniaTest):
         traits.INT.mod = traits.MAG.mod = 1
         races.apply_race(self.char1, 'elf', 'spirit')
         self.session.execute_cmd('@charcreate Char')
-        for i in xrange(9):
+        for i in list(range(9)):
             self.session.execute_cmd('2')
         self.assertEqual(traits.WM.base, 0)
         self.assertEqual(traits.BM.base, 9)
@@ -433,7 +433,7 @@ class ChargenTestCase(EvenniaTest):
         traits.INT.mod = traits.MAG.mod = 1
         races.apply_race(self.char1, 'elf', 'spirit')
         self.session.execute_cmd('@charcreate Char')
-        for i in xrange(4):
+        for i in list(range(4)):
             self.session.execute_cmd('1')
             self.session.execute_cmd('2')
         self.session.execute_cmd('3')
@@ -630,14 +630,15 @@ class ChargenTestCase(EvenniaTest):
         self.session.execute_cmd('done')
         self.session.execute_cmd('test sdesc')
         self.session.execute_cmd('test description')
-        self.session.execute_cmd('n')
+        self.session.execute_cmd('no')
+
         self.assertEqual(len(self.char1.traits.all), 0)
         self.assertEqual(len(self.char1.skills.all), 0)
         self.assertEqual(len(self.char1.contents), 0)
         self.assertIsNone(self.char1.db.archetype)
         self.assertIsNone(self.char1.db.race)
         self.assertIsNone(self.char1.db.focus)
-        self.assertEqual(self.char1.sdesc.get(), '')
+        self.assertEqual(self.char1.sdesc.get(), 'a normal person')
         self.assertIsNone(self.char1.db.desc)
         self.assertDictEqual(dict(self.char1.db.wallet),
                              {'GC': 0, 'SC': 0, 'CC': 0})
@@ -659,5 +660,3 @@ class ChargenTestCase(EvenniaTest):
         self.session.execute_cmd('test description')
         self.session.execute_cmd('y')
         self.assertTrue(self.char1.db.chargen_complete)
-
-

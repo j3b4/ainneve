@@ -64,6 +64,7 @@ Example usage:
     True
 """
 from typeclasses.items import Equippable
+from functools import reduce
 
 
 class EquipException(Exception):
@@ -95,13 +96,13 @@ class EquipHandler(object):
         self.obj = obj
 
         if not self.obj.db.slots:
-            raise EquipException('`EquipHandler` requires `db.slots` attribute on `obj`.')
+            raise EquipException('`EquipHandler` requires `db.slots` attribute on `{}`.'.format(obj))
 
         if obj.db.limbs and len(obj.db.limbs) > 0:
             self.limbs = {limb: slots for limb, slots in obj.db.limbs}
             self.slot_order = reduce(lambda x, y: x+y, (s for l, s in obj.db.limbs))
             # check that all slots are accounted for
-            if set(self.slot_order) != set(self.obj.db.slots.iterkeys()):
+            if set(self.slot_order) != set(self.obj.db.slots.keys()):
                 raise EquipException('Invalid limb configuration: slot/limb mismatch')
         else:
             self.limbs = {}
@@ -144,7 +145,7 @@ class EquipHandler(object):
     def __contains__(self, item):
         """Implement the __contains__ method."""
         return item.id in (i.id for i
-                           in self.obj.db.slots.itervalues()
+                           in self.obj.db.slots.values()
                            if i)
 
     @property

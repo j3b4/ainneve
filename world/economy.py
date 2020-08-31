@@ -33,8 +33,7 @@ def value_to_coin(value):
             cc = value % SC
             return dict(CC=cc, SC=sc, GC=gc)
         elif isinstance(value, (dict, _SaverDict)):
-            return {c: v for c, v in value.iteritems()
-                    if c in _WALLET_KEYS}
+            return {c: v for c, v in value.items() if c in _WALLET_KEYS}
     return None
 
 def coin_to_value(coins):
@@ -43,10 +42,10 @@ def coin_to_value(coins):
     Args:
         coins (int, dict): dict of coin names and values; assumes CC if an int
     """
-    if not isinstance(coins, (int, dict, _SaverDict)) or coins is None:
-        raise TypeError("'coins' must be a dict of 'coin': count pairs.")
     if coins is None:
         return None
+    if not isinstance(coins, (int, dict, _SaverDict)):
+        raise TypeError("'coins' must be a dict of 'coin': count pairs.")
     if isinstance(coins, int):
         coins = {'CC': coins}
     return (coins.get('GC', 0) * GC +
@@ -72,7 +71,7 @@ def transfer_funds(src, dst, value_or_coin):
         src.db.wallet = value_to_coin(src_val - xfr_val)
 
     if dst is not None:
-        dst.db.wallet = value_to_coin(dst_val + xfr_val)
+        dst.db.wallet = value_to_coin((dst_val or 0) + xfr_val)
 
 
 def format_coin(value_or_coin):
@@ -90,3 +89,4 @@ def format_coin(value_or_coin):
     if output == "":
         output = "0 CC"
     return output.strip()
+

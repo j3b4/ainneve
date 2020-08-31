@@ -24,9 +24,11 @@ __pycache__
 *.pid
 *.restart
 *.db3
+**/.DS_Store
 
 # Installation-specific
 #server/conf/settings.py
+server/conf/secret_settings.py
 server/logs/*.log.*
 web/static/*
 web/media/*

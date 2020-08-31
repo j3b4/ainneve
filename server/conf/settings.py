@@ -1,18 +1,30 @@
 """
 Evennia settings file.
 
-The full options are found in the default settings file found here:
+The available options are found in the default settings file found
+here:
 
-/home/griatch/Devel/MUD/evennia/evennia-trunk/evennia/settings_default.py
+{settings_default}
 
-Note: Don't copy more from the default file than you actually intend to
+Remember:
+
+Don't copy more from the default file than you actually intend to
 change; this will make sure that you don't overload upstream updates
 unnecessarily.
+
+When changing a setting requiring a file system path (like
+path/to/actual/file.py), use GAME_DIR and EVENNIA_DIR to reference
+your game folder and the Evennia library folders respectively. Python
+paths (path.to.module) should be given relative to the game's root
+folder (typeclasses.foo) whereas paths within the Evennia library
+needs to be given explicitly (evennia.foo).
+
+If you want to share your game dir, including its settings, you can
+put secret game- or server-specific settings in secret_settings.py.
 
 """
 
 # Use the defaults from Evennia unless explicitly overridden
-import os
 from evennia.settings_default import *
 
 ######################################################################
@@ -22,19 +34,38 @@ from evennia.settings_default import *
 # This is the name of your game. Make it catchy!
 SERVERNAME = "Ainneve"
 
-# Allow multiple sessions per player; one character per session
+# Server ports. If enabled and marked as "visible", the port
+# should be visible to the outside world on a production server.
+# Note that there are many more options available beyond these.
+
+IRC_ENABLED = True
+IDLE_TIMEOUT = 86400
+# Telnet ports. Visible.
+TELNET_ENABLED = True
+TELNET_PORTS = [4000]
+# (proxy, internal). Only proxy should be visible.
+WEBSERVER_ENABLED = True
+WEBSERVER_PORTS = [(4001, 4002)]
+# Telnet+SSL ports, for supporting clients. Visible.
+SSL_ENABLED = False
+SSL_PORTS = [4003]
+# SSH client ports. Requires crypto lib. Visible.
+SSH_ENABLED = False
+SSH_PORTS = [4004]
+# Websocket-client port. Visible.
+WEBSOCKET_CLIENT_ENABLED = True
+WEBSOCKET_CLIENT_PORT = 4005
+# Internal Server-Portal port. Not visible.
+AMP_PORT = 4006
+
+######################################################################
+# Django web features
+######################################################################
+
+# Allow multiple sessions per account; one character per session
 MULTISESSION_MODE = 2
 MAX_NR_CHARACTERS = 5
-
-# Path to the game directory (use EVENNIA_DIR to refer to the
-# core evennia library)
-GAME_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Place to put log files
-LOG_DIR = os.path.join(GAME_DIR, "server", "logs")
-SERVER_LOG_FILE = os.path.join(LOG_DIR, 'server.log')
-PORTAL_LOG_FILE = os.path.join(LOG_DIR, 'portal.log')
-HTTP_LOG_FILE = os.path.join(LOG_DIR, 'http_requests.log')
+IRC_ENABLED = True
 
 # Other defaults
 PROTOTYPE_MODULES = ('world.content.prototypes_armor',
@@ -43,64 +74,36 @@ PROTOTYPE_MODULES = ('world.content.prototypes_armor',
                      'world.content.prototypes_mobs',
                      'world.content.prototypes_weapons'
                      )
-BASE_BATCHPROCESS_PATHS = ['world.build']
 
+BASE_BATCHPROCESS_PATHS = ['world.content']
+
+# Evennia game index settings
+GAME_INDEX_LISTING = {
+    'game_status': 'pre-alpha',
+    # Optional, comment out or remove if N/A
+    'game_website': 'http://ainneve.evennia.com',
+    'short_description': 'This is the example game for Evennia.',
+    # Optional but highly recommended. Markdown is supported.
+    'long_description': (
+        "Launched in the summer of 2015 by the Evennia community, this project "
+        "aims to be a full example implementation of a MUD-style RP-focused game.\n\n"
+        "It is based on the [Open Adventure](https://github.com/openadventure/Open-Adventure/blob/master/rulebook/biem/openadventure_basic.pdf) "
+        "table-top game system, is fantasy-themed, and features turn-based combat.\n\n"
+        "It still a work in progress, and basic game systems are still being built. "
+        "However, we welcome any who are interested in testing things out and giving "
+        "feedback."
+    ),
+    'listing_contact': 'fened78@gmail.com',
+    # At minimum, specify this or the web_client_url options. Both is fine, too.
+    'telnet_hostname': 'ainneve.evennia.com',
+    'telnet_port': 4000,
+    # At minimum, specify this or the telnet_* options. Both is fine, too.
+    'web_client_url': 'http://ainneve.evennia.com:8000/webclient',
+}
 ######################################################################
-# Evennia Database config
+# Settings given in secret_settings.py override those in this file.
 ######################################################################
-
-# Database config syntax:
-# ENGINE - path to the the database backend. Possible choices are:
-#            'django.db.backends.sqlite3', (default)
-#            'django.db.backends.mysql',
-#            'django.db.backends.postgresql_psycopg2',
-#            'django.db.backends.oracle' (untested).
-# NAME - database name, or path to the db file for sqlite3
-# USER - db admin (unused in sqlite3)
-# PASSWORD - db admin password (unused in sqlite3)
-# HOST - empty string is localhost (unused in sqlite3)
-# PORT - empty string defaults to localhost (unused in sqlite3)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(GAME_DIR, "server", "evennia.db3"),
-        'USER': '',
-        'PASSWORD': '',
-        'HOST': '',
-        'PORT': ''
-        }}
-
-######################################################################
-# Django web features
-######################################################################
-
-# Absolute path to the directory that holds file uploads from web apps.
-# Example: "/home/media/media.lawrence.com"
-MEDIA_ROOT = os.path.join(GAME_DIR, "web", "media")
-
-# The master urlconf file that contains all of the sub-branches to the
-# applications. Change this to add your own URLs to the website.
-ROOT_URLCONF = 'web.urls'
-
-# URL prefix for admin media -- CSS, JavaScript and images. Make sure
-# to use a trailing slash. Django1.4+ will look for admin files under
-# STATIC_URL/admin.
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(GAME_DIR, "web", "static")
-
-# Directories from which static files will be gathered from.
-STATICFILES_DIRS = (
-    os.path.join(GAME_DIR, "web", "static_overrides"),
-    os.path.join(EVENNIA_DIR, "web", "static"),)
-
-# We setup the location of the website template as well as the admin site.
-TEMPLATE_DIRS = (
-    os.path.join(GAME_DIR, "web", "template_overrides"),
-    os.path.join(EVENNIA_DIR, "web", "templates", ACTIVE_TEMPLATE),
-    os.path.join(EVENNIA_DIR, "web", "templates"),)
-
-# The secret key is randomly seeded upon creation. It is used to sign
-# Django's cookies. Do not share this with anyone. Changing it will
-# log out all active web browsing sessions. Game web client sessions
-# may survive.
-SECRET_KEY = '5(r:%@Gmg-?}NU3d[/ul8+t.SJ$",c`|qxsDo"Z='
+try:
+    from server.conf.secret_settings import *
+except ImportError:
+    print ("secret_settings.py file not found or failed to import.")

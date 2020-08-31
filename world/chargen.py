@@ -59,8 +59,7 @@ _CATEGORY_HELP = {
              'equipment slot.')
 }
 
-_CATEGORY_LIST = sorted(_EQUIPMENT_CATEGORIES.iterkeys(),
-                        key=lambda c: _EQUIPMENT_CATEGORIES[c][0])
+_CATEGORY_LIST = sorted(list(_EQUIPMENT_CATEGORIES.keys()), key=lambda c: _EQUIPMENT_CATEGORIES[c][0])
 
 
 article_re = re.compile(r'^an?\s', re.IGNORECASE)
@@ -152,7 +151,7 @@ def menunode_allocate_traits(caller, raw_string):
         return (text, help), options
     else:
         data = []
-        for i in xrange(3):
+        for i in list(range(3)):
             data.append([_format_trait_opts(char.traits[t])
                          for t in archetypes.PRIMARY_TRAITS[i::3]])
         table = EvTable(header=False, table=data)
@@ -273,7 +272,7 @@ def menunode_allocate_mana(caller, raw_string):
 
         archetypes.calculate_secondary_traits(char.traits)
         archetypes.finalize_traits(char.traits)
-        tickerhandler.add(char, 6, hook_key='at_turn_start')
+        tickerhandler.add(interval=6, callback=char.at_turn_start)
         skills.apply_skills(char)
         return menunode_allocate_skills(caller, output)
 
@@ -342,7 +341,7 @@ def menunode_allocate_skills(caller, raw_string):
     else:
         skills.finalize_skills(char.skills)
         data = []
-        for i in xrange(3):
+        for i in list(range(3)):
             data.append([_format_trait_opts(sk[s], color='|M')
                          for s in skills.ALL_SKILLS[i::3]])
         table = EvTable(header=False, table=data)
@@ -373,17 +372,17 @@ def menunode_equipment_cats(caller, raw_string):
                  "Silver Coins (SC), and Gold Coins (GC), with a conversion"
                  "rate of 100 CC = 1 SC and 100 SC = 1 GC")
 
-    def show_inventory(s):
+    def show_inventory(session):
         """display the character's inventory
 
         We achieve this by "monkey patching" the session's `msg` method
         onto the new char to catch the output of the 'inventory' command.
         """
-        s.msg('\n')
-        old_msg = s.new_char.msg
-        s.new_char.msg = s.msg
-        s.new_char.execute_cmd('inventory')
-        s.new_char.msg = old_msg
+        session.msg('\n')
+        old_msg = session.new_char.msg
+        session.new_char.msg = session.msg
+        session.new_char.execute_cmd('inventory')
+        session.new_char.msg = old_msg
 
     options = [{"desc": cat, "goto": "menunode_equipment_list"}
                for cat in _CATEGORY_LIST]
@@ -413,11 +412,11 @@ def menunode_equipment_list(caller, raw_string):
                 else '')
 
     help = _CATEGORY_HELP[category]
-    prototypes = spawn(return_prototypes=True)
+    prototypes = spawn(return_parents=True)
     options = []
     for proto in _EQUIPMENT_CATEGORIES[category][1:]:
         options.append({
-            "desc": _format_menuitem_desc(prototypes[proto]),
+            "desc": _format_menuitem_desc(prototypes[proto.lower()]),
             "goto": "menunode_examine_and_buy"
         })
     options.append({
@@ -431,11 +430,11 @@ def menunode_equipment_list(caller, raw_string):
 def menunode_examine_and_buy(caller, raw_string):
     """Examine and buy an item."""
     char = caller.new_char
-    prototypes = spawn(return_prototypes=True)
+    prototypes = spawn(return_parents=True)
     items, item = _EQUIPMENT_CATEGORIES[caller.ndb._menutree.item_category][1:], None
     raw_string = raw_string.strip()
     if raw_string.isdigit() and int(raw_string) <= len(items):
-        item = prototypes[items[int(raw_string) - 1]]
+        item = prototypes[items[int(raw_string) - 1].lower()]
     if item:
         text = _format_item_details(item)
         text += "You currently have {}. Purchase |w{}|n?".format(
@@ -444,11 +443,12 @@ def menunode_examine_and_buy(caller, raw_string):
                 )
         help = "Choose carefully. Purchases are final."
 
-        def purchase_item(s):
+        def purchase_item(session):
             """Process item purchase."""
             try:
                 # this will raise exception if caller doesn't
                 # have enough funds in their `db.wallet`
+                print(item)
                 transfer_funds(char, None, item['value'])
                 ware = spawn(item).pop()
                 ware.move_to(char, quiet=True)
@@ -460,7 +460,7 @@ def menunode_examine_and_buy(caller, raw_string):
             except InsufficientFunds:
                 rtext = "You do not have enough money to buy {}.".format(
                             item['key'])
-            s.msg(rtext)
+            session.msg(rtext)
 
         options = ({"key": ("Yes", "ye", "y"),
                     "desc": "Purchase {} for {}".format(
@@ -528,9 +528,9 @@ def menunode_confirm(caller, raw_string):
         (char.db.archetype,
          char.db.race,
          char.db.focus,
-         char.db.desc) = [None for _ in xrange(4)]
+         char.db.desc) = [None for _ in list(range(4))]
 
-        char.sdesc.add('')
+        char.sdesc.add('a normal person')
         char.db.wallet = {'GC': 0, 'SC': 0, 'CC': 0}
         char.traits.clear()
         char.skills.clear()
@@ -566,13 +566,14 @@ def _format_trait_opts(trait, color='|C'):
     return "{}{:<15.15}|n : |x[|n{:>4}|x]|n".format(
                 color, trait.name, trait.actual)
 
+
 def _format_skill_opts(skill):
     """Return a trait : value : counters triad formatted as a menu option"""
     return "|M{:<15.15}|n: |w{:>4}|n (|m{:>+2}|n)".format(
                 skill.name,
                 skill.actual + skill.plus - skill.minus,
-                skill.plus - skill.minus
-           )
+                skill.plus - skill.minus)
+
 
 def _format_menuitem_desc(item):
     """Returns a piece of equipment formatted as a one-line menu item."""
@@ -599,9 +600,14 @@ def _format_menuitem_desc(item):
 
 
 def _format_item_details(item):
+    print(item)
+    # The hackiest solution in the world
+    # Todo: Evaluate replacing this method
+    value = [i for i in item['attrs'] if i[0] == 'value'][0][1]
+    weight = [i for i in item['attrs'] if i[0] == 'weight'][0][1]
     """Returns a piece of equipment's details and description."""
-    stats = [["          |CPrice|n: {}".format(as_price(item['value'])),
-              "         |CWeight|n: |w{}|n".format(item['weight'])],
+    stats = [["          |CPrice|n: {}".format(as_price(value)),
+              "         |CWeight|n: |w{}|n".format(weight)],
              []]
     col1, col2 = stats
     # this is somewhat awkward because we're using prototype dicts instead
@@ -623,7 +629,8 @@ def _format_item_details(item):
 
     if item['typeclass'] in ("typeclasses.weapons.RangedWeapon",
                              "typeclasses.weapons.TwoHandedRanged"):
-        col2.append("          |CRange|n: |G{}|n".format(item['range']))
+        col2.append("          |CRange|n: |G{}|n".format(
+            ", ".join([r.capitalize() for r in item['range']])))
 
     if item['typeclass'] in ("typeclasses.armors.Armor",
                              "typeclasses.armors.Shield"):

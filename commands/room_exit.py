@@ -3,20 +3,21 @@
 
 from evennia import CmdSet
 from evennia.commands.default.muxcommand import MuxCommand
-from evennia.contrib.extended_room import *
-
+from evennia.contrib.extended_room import CmdExtendedRoomLook
+from evennia.contrib.extended_room import CmdExtendedRoomDesc
+from evennia.contrib.extended_room import CmdExtendedRoomGameTime
 
 class AinneveRoomExitsCmdSet(CmdSet):
     """Command set containing ExtendedRoom commands."""
     def at_cmdset_creation(self):
         # ExtendedRoom commands
-        self.add(CmdExtendedLook())
-        self.add(CmdExtendedDesc())
-        self.add(CmdGameTime())
+        self.add(CmdExtendedRoomLook())
+        self.add(CmdExtendedRoomDesc())
+        self.add(CmdExtendedRoomGameTime())
 
         # Ainneve room builder commands
         self.add(CmdTerrain())
-        self.add(CmdRangeField())
+        self.add(CmdCapacity())
 
         # exit commands
         self.add(CmdStop())
@@ -48,7 +49,7 @@ class CmdTerrain(MuxCommand):
         terrain = self.rhs.strip().upper()
         lhs = self.lhs.strip()
         if lhs != '':
-            target = self.caller.search(lhs)
+            target = self.caller.search(lhs, global_search=True)
         else:
             target = self.caller.location
 
@@ -68,46 +69,46 @@ class CmdTerrain(MuxCommand):
             self.caller.msg('Cannot set terrain on {}.'.format(target.key))
 
 
-class CmdRangeField(MuxCommand):
+class CmdCapacity(MuxCommand):
     """
-    sets room's combat range field
+    sets room's maximum capacity
 
     Usage:
-      @rangefield [<room>] = (<length>, <width>)
+      @capacity [<room>] = <maxchars>
 
     Args:
-      room: the room on which to set the range field
-      length: (positive int) length of the combat range field
-      width: (positive int) width of the combat range field; limits
-        the number of characters that may stand abreast in the room
+      room: the room on which to set the capacity
+      maxchars: (positive int) maximum number of characters
+                allowed in room or zero (0) for unlimited
 
     Notes:
       If <room> is omitted, defaults to your current location.
     """
-    key = "@rangefield"
+    key = "@capacity"
+    aliases = ["@cap"]
     locks = "cmd:perm(Builders)"
     help_category = 'Building'
 
     def func(self):
         """Set the property here."""
         if not self.rhs:
-            self.caller.msg("Usage: @rangefield [<room>] = (<length>, <width>)")
+            self.caller.msg("Usage: @capacity [<room>] = <maxchars>")
             return
 
-        # range_field has to be set as a tuple; parse the string input
-        rf_re = re.compile(r'\(?\s*(\d+)\s*,\s*(\d+)\s*\)?', re.UNICODE)
-        rf_match = rf_re.search(self.rhs)
+        try:
+            capacity = int(self.rhs.strip())
+        except ValueError:
+            capacity = -1
 
-        if rf_match:
-            range_field = tuple(sorted((int(x) for x in rf_match.groups()),
-                                       reverse=True))
-        else:
-            self.caller.msg("Invalid range field specified.")
+        if capacity <= 0:
+            self.caller.msg("Invalid capacity specified.")
             return
 
         lhs = self.lhs.strip()
         if lhs != '':
-            target = self.caller.search(self.lhs.strip())
+            target = self.caller.search(lhs,
+                                        typeclass='typeclasses.rooms.Room',
+                                        global_search=True)
         else:
             target = self.caller.location
 
@@ -115,16 +116,8 @@ class CmdRangeField(MuxCommand):
             self.caller.msg("Room not found.")
             return
 
-        if target.is_typeclass('typeclasses.rooms.Room'):
-            try:
-                target.range_field = range_field
-            except ValueError as e:
-                self.caller.msg(e.message)
-            else:
-                self.caller.msg("Range field set on {}.".format(target.key))
-        else:
-            self.caller.msg('Cannot set range field on {}.'.format(target.key))
-
+        target.db.max_chars = capacity
+        self.caller.msg("Capacity set on {}.".format(target.get_display_name(self.caller)))
 
 
 class CmdStop(MuxCommand):

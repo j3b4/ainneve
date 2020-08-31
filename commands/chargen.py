@@ -1,22 +1,22 @@
 """
 Chargen commands.
 
-Ainneve implements MULTISESSION_MODE = 2, in which players enter an
+Ainneve implements MULTISESSION_MODE = 2, in which accounts enter an
 OOC state immediately after creation. From that state, the @charcreate
 command is available to create a new character. This command launches
 the Ainneve character creation EvMenu.
 
 This new @charcreate command is added to the session cmdset. We also
 create a cmdset with the "Remove" mergetype to remove the original
-version from the player cmdset.
+version from the account cmdset.
 
-To ensure that players cannot puppet a character until it has completed
+To ensure that accounts cannot puppet a character until it has completed
 the entire character creation process, we also override the default @ic
-command on the player.
+command on the account.
 """
 from django.conf import settings
 from evennia import CmdSet
-from evennia.commands.default.muxcommand import MuxPlayerCommand
+from evennia.commands.default.muxcommand import MuxAccountCommand
 from evennia import default_cmds
 from evennia.utils import create, search
 from evennia.utils.evmenu import EvMenu
@@ -37,7 +37,7 @@ class CharCreateCmdSet(CmdSet):
 
 
 class RemoveCharCreateCmdSet(CmdSet):
-    """Command set to remove @charcreate command from Player."""
+    """Command set to remove @charcreate command from Account."""
     key = "rem_charcreate_cmdset"
     priority = 2
     mergetype = "Remove"
@@ -48,7 +48,7 @@ class RemoveCharCreateCmdSet(CmdSet):
 
 
 class ChargenICCmdSet(CmdSet):
-    """Command set to override the @ic command on Player"""
+    """Command set to override the @ic command on Account"""
     key = 'chargen_ic_cmdset'
     priority = 2
 
@@ -66,12 +66,12 @@ class CmdIC(default_cmds.CmdIC):
     Go in-character (IC) as a given Character.
 
     This will attempt to "become" a different object assuming you have
-    the right to do so. Note that it's the PLAYER character that puppets
+    the right to do so. Note that it's the ACCOUNT that puppets
     characters/objects and which needs to have the correct permission!
 
     You cannot become an object that is already controlled by another
-    player. In principle <character> can be any in-game object as long
-    as you the player have access right to puppet it.
+    account. In principle <character> can be any in-game object as long
+    as you the account have access right to puppet it.
     """
     def func(self):
         """Don't allow puppeting unless the chargen_complete attribute is set."""
@@ -91,7 +91,7 @@ class CmdIC(default_cmds.CmdIC):
         super(CmdIC, self).func()
 
 
-class CmdCharCreate(MuxPlayerCommand):
+class CmdCharCreate(MuxAccountCommand):
     """
     create a new character
 
@@ -103,12 +103,12 @@ class CmdCharCreate(MuxPlayerCommand):
     character using lower-case letters if you want.
     """
     key = "@charcreate"
-    locks = "cmd:pperm(Players)"
+    locks = "cmd:pperm(Player)"
     help_category = "General"
 
     def func(self):
         "create the new character"
-        player = self.player
+        account = self.account
         session = self.session
         if not self.args:
             self.msg("Usage: @charcreate <charname>")
@@ -117,9 +117,9 @@ class CmdCharCreate(MuxPlayerCommand):
 
         charmax = _MAX_NR_CHARACTERS if _MULTISESSION_MODE > 1 else 1
 
-        if not player.is_superuser and \
-            (player.db._playable_characters and
-                len(player.db._playable_characters) >= charmax):
+        if not account.is_superuser and \
+            (account.db._playable_characters and
+                len(account.db._playable_characters) >= charmax):
             self.msg(
                 "You may only create a maximum of {} characters.".format(
                     charmax))
@@ -128,17 +128,26 @@ class CmdCharCreate(MuxPlayerCommand):
         # create the character
         from evennia.objects.models import ObjectDB
 
-        start_location = ObjectDB.objects.get_id(settings.START_LOCATION)
-        default_home = ObjectDB.objects.get_id(settings.DEFAULT_HOME)
+        start_location = search.objects('Kai River Bridge')
+        start_location = start_location[0] if start_location \
+            else ObjectDB.objects.get_id(settings.START_LOCATION)
+
+        home = search.objects('Shrine of Grass')
+        home = home[0] if home \
+            else ObjectDB.objects.get_id(settings.DEFAULT_HOME)
+
         typeclass = settings.BASE_CHARACTER_TYPECLASS
-        permissions = settings.PERMISSION_PLAYER_DEFAULT
+        permissions = settings.PERMISSION_ACCOUNT_DEFAULT
 
         # check whether a character already exists
         new_character = None
-        candidates = search.objects(key, typeclass='typeclasses.characters.Character')
+        candidates = search.objects(
+            key,
+            typeclass='typeclasses.characters.Character')
+
         if candidates:
             for c in candidates:
-                if c.access(player, 'puppet'):
+                if c.access(account, 'puppet'):
                     new_character = c
                     break
 
@@ -147,15 +156,15 @@ class CmdCharCreate(MuxPlayerCommand):
 
             new_character = create.create_object(typeclass, key=key,
                                                  location=None,
-                                                 home=default_home,
+                                                 home=home,
                                                  permissions=permissions)
             # only allow creator (and immortals) to puppet this char
             new_character.locks.add(
                 ("puppet:id({}) or pid({}) "
                  "or perm(Immortals) or pperm(Immortals)").format(
-                    new_character.id, player.id
-            ))
-            player.db._playable_characters.append(new_character)
+                    new_character.id, account.id
+                ))
+            account.db._playable_characters.append(new_character)
 
         else:
             if new_character.db.chargen_complete:
@@ -186,11 +195,10 @@ class CmdCharCreate(MuxPlayerCommand):
             char = session.new_char
             if char.db.chargen_complete:
                 char.location = start_location
-                player.puppet_object(session, char)
+                account.puppet_object(session, char)
+                char.execute_cmd("help getting started")
 
         EvMenu(session,
                "world.chargen",
                startnode=startnode,
-               allow_quit=False,
-               cmd_on_quit=finish_char_callback)
-
+               cmd_on_exit=finish_char_callback)
